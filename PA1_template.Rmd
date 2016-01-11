@@ -1,25 +1,120 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Workout Interpretations"
+author: "Kamraj Subramanian"
+date: "January 10, 2016"
+output: html_document
 ---
 
+reading the workout csv file after setting the working directory
+```{r,echo=TRUE}
+setwd("C:\\Users\\Kamraj\\Desktop\\temp")
+activity <- read.csv("activity.csv",colClasses = c("numeric", "character","integer"))
+```
 
-## Loading and preprocessing the data
+Calling plyr and dplyr packages for preprocessing, lubridate for date class variables manipulation and ggplot2 for plotting the graph.
+```{r, echo=TRUE}
+library(plyr)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+```
 
+Converting into date class
+```{r,echo=TRUE}
+activity$date <- ymd(activity$date)
+```
 
+1
+Average number of steps taken everyday
+total number of steps taken everyday 
+```{r, echo=TRUE}
+totalsteps <- tapply(activity$steps, activity$date, FUN = sum, na.rm = TRUE)
+hist(totalsteps,breaks=10, main = "Frequency of number of steps per day", 
+    xlab = "number of steps taken everyday", ylab = "frequency", col = "blue")
 
-## What is mean total number of steps taken per day?
+```
 
+#mean and median of the total number of steps taken per day
+```{r,echo=TRUE}
+mean(totalsteps, na.rm = T)
+median(totalsteps, na.rm = T)
+```
 
+###2
+##Average daily activity pattern
+# time series plot of the 5-minute interval  and the average number of steps taken, averaged across all days:
+```{r, echo=TRUE}
 
-## What is the average daily activity pattern?
+stepsaverageperinterval <- tapply(activity$steps, activity$interval, mean, na.rm = T)
+plot(stepsaverageperinterval, type = "l", main = ("daily average over interval"), ylab = "average number of steps")
 
+```
 
+#5-minute interval, on average across all the days in the dataset, contains the maximum number of steps
+```{r,echo=TRUE}
+seq(along = stepsaverageperinterval)[stepsaverageperinterval == max(stepsaverageperinterval)]
+```
 
-## Imputing missing values
+###3
+##Imputing missing values
+#total number of missing values in the dataset
+```{r, echo=TRUE}
+sum(is.na(activity$steps))
+```
 
+#filling in all of the missing values in the dataset with the mean by interval
+```{r,echo=TRUE}
 
+imputedactivity <- activity %>%
+        group_by(interval) %>%
+        mutate(steps = ifelse(is.na(steps), mean(steps, na.rm=TRUE), steps))
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+#Make a histogram of the total number of steps taken each day
+```{r,echo=TRUE}
+
+stepstaken <- imputedactivity%>%
+  group_by(date) %>%
+  summarize(steps = sum(steps))
+
+hist(stepstaken$steps, breaks = 5, main = "Frequency of number of steps per day",
+    xlab = "Number of steps per day", ylab = "Frequency", col = "black")
+```
+
+#As the mean is been used to impute the missing values, the plot looks crowded in the center.
+```{r,echo=TRUE}
+
+mean(stepstaken$steps)
+median(stepstaken$steps)
+
+```
+###4
+##differences in activity patterns between weekdays and weekends
+# factor variable with weekday, weekend
+```{r, echo=TRUE}
+
+tim <- as.POSIXlt(activity$date, format = "%Y-%m-%d")
+WeekDay <- tim$wday
+WeekDay[WeekDay == 0] = 0
+WeekDay[WeekDay == 6] = 0
+WeekDay[WeekDay != 0] = 1
+WeekDayFactor <- factor(WeekDay, levels = c(0, 1))
+activity$WeekDay <- WeekDayFactor
+```
+
+#  mean
+```{r,echo=TRUE}
+
+stepsaverageperweekday<- tapply(activity$steps, list(activity$interval, activity$WeekDay), mean, na.rm = T)
+
+par(mfrow = c(2, 1))
+with(activity, {
+    par(mai = c(0, 1, 1, 0))
+    plot(stepsaverageperweekday[, 1], type = "l", main = ("Number of steps across  interval"), 
+        xaxt = "n", ylab = "Weekends")
+    title = ("patterns across weekdays and weekends")
+    par(mai = c(1, 1, 0, 0))
+    plot(stepsaverageperweekday[, 2], type = "l", xlab = "Interval", ylab = "Week days")
+
+})
+```
